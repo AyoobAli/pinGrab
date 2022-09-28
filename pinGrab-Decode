@@ -1,0 +1,110 @@
+#!/bin/bash
+
+#  ------------
+#  Name        : pinGrab
+#  Author      : Ayoob Ali
+#  Version     : v0.1.0 (Beta)
+#  Date        : 25-09-2022
+#  License     : GNU GPLv3
+#  Description : Transfer data over ICMP protocol
+#  ------------
+
+if [[ "$#" < 1 ]];then
+    echo "usage: `basename $0` <file_path>"
+    exit 1
+fi
+
+if [[ ! -f "$1" ]]; then
+    echo "Can't find file"
+    exit 1
+fi
+
+sendMSG () {
+
+    if [[ "$2" == "red" || "$2" == "r" ]]; then
+
+        if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+            echo -en "\e[1;91m"
+            echo -n "$1"
+            echo -en "\e[0m"
+        else
+            echo -en "\e[1;91m"
+            echo -n "$1"
+            echo -e "\e[0m"
+        fi
+
+    elif [[ "$2" == "green" || "$2" == "g" ]]; then
+
+        if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+            echo -en "\e[1;92m"
+            echo -n "$1"
+            echo -en "\e[0m"
+        else
+            echo -en "\e[1;92m"
+            echo -n "$1"
+            echo -e "\e[0m"
+        fi
+
+    elif [[ "$2" == "yellow" || "$2" == "y" ]]; then
+
+        if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+            echo -en "\e[1;93m"
+            echo -n "$1"
+            echo -en "\e[0m"
+        else
+            echo -en "\e[1;93m"
+            echo -n "$1"
+            echo -e "\e[0m"
+        fi
+
+    elif [[ "$2" == "normal" || "$2" == "n" ]]; then
+
+        if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+            echo -n "$1"
+        else
+            echo "$1"
+        fi
+
+    else
+
+        if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+            echo -n "$1"
+        else
+            echo "$1"
+        fi
+
+    fi
+}
+
+fileName=""
+header=0
+headChar=""
+asciiStr=""
+
+sendMSG "Decoding file: $1" 'y'
+
+while IFS= read strLine; do
+
+    from=`echo "${strLine}" | awk '{print $3}'`
+    to=`echo "${strLine}" | awk '{print $5}'`
+    code=`echo "${strLine}" | awk '{print $14}'`
+    ascii=`expr $code - 8`
+
+    if (( $header < 5 )); then
+        headTp=`printf "\x$(printf %x $ascii)"`
+        headChar+="$headTp"
+    else
+        fileName=`echo "$headChar" | md5sum | awk '{print $1}'`
+
+        printf "\x$(printf %x $ascii)" >> "data/$fileName.data"
+
+    fi
+
+        if [[ "$ascii" == 58 ]]; then
+        ((header++))
+        
+    fi
+    
+done < <(cat "$1" | grep -i 'ICMP echo request')
+
+echo "$headChar" > "data/$fileName.txt"

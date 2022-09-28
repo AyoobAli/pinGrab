@@ -1,0 +1,210 @@
+#!/bin/bash
+
+#  ------------
+#  Name        : pinGrab
+#  Author      : Ayoob Ali
+#  Version     : v0.1.0 (Beta)
+#  Date        : 25-09-2022
+#  License     : GNU GPLv3
+#  Description : Transfer data over ICMP protocol
+#  ------------
+
+
+DEPENDENCIES="ping tcpdump cat echo dirname readlink basename getopts" 
+APPNAME="pinGrab"
+APPAUTHOR="Ayoob Ali"
+APPWEBSITE="https://www.ayoob.ae"
+VERSION="v0.1.0 (Beta)"
+optString=":hf:qd"
+optMandatory=false
+ishelp="no"
+err=0
+timestamp=`date +"%Y%m%d-%H%M%S"`
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+logPath="$SCRIPT_DIR/pinGrab_$timestamp.log"
+quiteMode="no"
+decodeData="no"
+
+for depName in $DEPENDENCIES; do
+
+    if ! command -v "$depName" >/dev/null 2>&1; then
+        echo -e " \e[1;91m[Error] Missing dependence:\e[0m \e[92m$depName\e[0m"
+        ((err++))
+    fi
+
+done
+
+if (( $err > 0 )); then
+
+    echo " You have $err Missing dependencies."
+    exit
+
+fi
+
+sendMSG () {
+
+    if [[ "$quiteMode" == "no" ]]; then
+    
+        if [[ "$2" == "red" || "$2" == "r" ]]; then
+
+            if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+                echo -en "\e[1;91m"
+                echo -n "$1"
+                echo -en "\e[0m"
+            else
+                echo -en "\e[1;91m"
+                echo -n "$1"
+                echo -e "\e[0m"
+            fi
+
+        elif [[ "$2" == "green" || "$2" == "g" ]]; then
+
+            if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+                echo -en "\e[1;92m"
+                echo -n "$1"
+                echo -en "\e[0m"
+            else
+                echo -en "\e[1;92m"
+                echo -n "$1"
+                echo -e "\e[0m"
+            fi
+
+        elif [[ "$2" == "yellow" || "$2" == "y" ]]; then
+
+            if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+                echo -en "\e[1;93m"
+                echo -n "$1"
+                echo -en "\e[0m"
+            else
+                echo -en "\e[1;93m"
+                echo -n "$1"
+                echo -e "\e[0m"
+            fi
+
+        elif [[ "$2" == "normal" || "$2" == "n" ]]; then
+
+            if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+                echo -n "$1"
+            else
+                echo "$1"
+            fi
+
+        else
+
+            if [[ "$3" == "newline" || "$3" == "new" || "$3" == "n" ]]; then
+                echo -n "$1"
+            else
+                echo "$1"
+            fi
+
+        fi
+    fi
+}
+
+showBanner () {
+
+
+    sendMSG "
+              _        _____           _     
+             (_)      / ____|         | |             .--.
+        _ __  _ _ __ | |  __ _ __ __ _| |__          |o_o |
+       | '_ \| | '_ \| | |_ | '__/ _\` | '_ \         |:_/ |
+       | |_) | | | | | |__| | | | (_| | |_) |       //   \ \ 
+       | .__/|_|_| |_|\_____|_|  \__,_|_.__/       (|     | )
+       | |                                        /\"\_   _/\`\ 
+       |_|                                        \___)=(___/
+       " "g" "n"
+
+
+    sendMSG "$VERSION" "y"
+    echo -e "\n\n\n"
+
+}
+
+showHelp () {
+    showBanner
+    echo "Usage: `basename $0` [Options]";
+    echo "
+    Available Options:
+        -h                  Show help menu
+        -f [file_path]      Path to save the logs to (Defualt: pinGrablogs.log)
+        -q                  Run in quite mode
+        -d                  Decode data ehrn closing
+    "
+    exit
+}
+
+if ( ! getopts "$optString" opt && "$optMandatory" -eq true); then
+    showHelp
+fi
+
+while getopts "$optString" opt; do
+    case $opt in
+        f) logPath="$OPTARG";;
+        h) ishelp="yes";;
+        q) quiteMode="yes";;
+        d) decodeData="yes";;
+    esac
+done
+
+if [[ "$ishelp" == 'yes' ]] ; then
+    showHelp
+fi
+
+if [[ -f "$logPath" ]]; then
+    sendMSG "Error: Log File already exist." "r"
+    exit 1
+fi
+
+
+userID=`sudo id -u`
+
+if [[ "$userID" != "0" ]]; then
+    sendMSG "Auth: You need root permission to run this application." "r"
+    exit 2
+fi
+
+
+
+sendMSG "Ready to receive data." "g"
+sendMSG "Logging to: $logPath" "y"
+sendMSG "Press Ctrl+C to stop capturing data." "g"
+
+sudo tcpdump -i any icmp and icmp[icmptype]=icmp-echo >> "$logPath" 2> /dev/null
+
+if [[ "$decodeData" == "yes" ]]; then
+    sendMSG ""
+    sendMSG "Decoding traffic..." "y"
+
+    fileName=""
+    header=0
+    headChar=""
+    asciiStr=""
+
+    while IFS= read strLine; do
+
+        from=`echo "${strLine}" | awk '{print $3}'`
+        to=`echo "${strLine}" | awk '{print $5}'`
+        code=`echo "${strLine}" | awk '{print $14}'`
+        ascii=`expr $code - 8`
+
+        if (( $header < 5 )); then
+            headTp=`printf "\x$(printf %x $ascii)"`
+            headChar+="$headTp"
+        else
+            fileName=`echo "${from}-${to}-${headChar}" | md5sum | awk '{print $1}'`
+
+            printf "\x$(printf %x $ascii)" >> "data/$fileName.data"
+
+        fi
+
+            if [[ "$ascii" == 58 ]]; then
+            ((header++))
+            
+        fi
+        
+    done < <(cat "$logPath" | grep -i 'ICMP echo request')
+
+    echo "$headChar" >> "data/$fileName.txt"
+fi
+

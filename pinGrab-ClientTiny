@@ -1,0 +1,4 @@
+#!/bin/bash
+for item in `od -An -tu1 -v "$1"`; do
+    ping "$2" -c1 -s "$item" &> /dev/null
+done
