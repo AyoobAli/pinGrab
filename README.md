@@ -2,6 +2,8 @@
 
 PinGrab is a suite of tools designed to transfer data over the ICMP protocol securely and stealthily. This suite consists of three main components: Server, Client, and Decoder. The tools work together to encode, send, and decode data packets hidden within ICMP packets.
 
+![pinGrab](pinGrab.png)
+
 ## Components
 
 - **pinGrab-Server**: Receives and decodes ICMP packets.
