@@ -129,7 +129,7 @@ showHelp () {
         -h                  Show help menu
         -f [file_path]      Path to save the logs to (Defualt: pinGrablogs.log)
         -q                  Run in quite mode
-        -d                  Decode data ehrn closing
+        -d                  Decode data when closing
     "
     exit
 }
